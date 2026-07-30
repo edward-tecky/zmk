@@ -729,6 +729,10 @@ int zmk_keymap_position_state_changed(uint8_t source, uint32_t position, bool pr
     ARG_UNUSED(timestamp);
     return -ENOTSUP;
 #else
+    if (position >= ZMK_KEYMAP_LEN) {
+        return -EINVAL;
+    }
+
     if (pressed) {
         zmk_keymap_active_behavior_layer[position] = _zmk_keymap_layer_state;
     }

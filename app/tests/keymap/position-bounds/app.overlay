@@ -1,0 +1,22 @@
+#include <behaviors.dtsi>
+
+/ {
+    chosen {
+        zmk,matrix-transform = &single_position_transform;
+    };
+
+    single_position_transform: single_position_transform {
+        compatible = "zmk,matrix-transform";
+        columns = <1>;
+        rows = <1>;
+        map = <0>;
+    };
+
+    keymap {
+        compatible = "zmk,keymap";
+
+        default_layer {
+            bindings = <&none>;
+        };
+    };
+};
