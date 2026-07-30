@@ -1,7 +1,6 @@
 tests:
-  zmk.keymap.zero_length:
+  zmk.keymap.position_bounds:
     platform_allow:
-      - native_sim
       - native_sim/native/64
     tags:
       - zmk
