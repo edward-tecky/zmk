@@ -2,6 +2,7 @@ tests:
   zmk.studio.gatt_rpc_rx:
     platform_allow:
       - native_sim
+      - native_sim/native/64
     tags:
       - zmk
       - studio

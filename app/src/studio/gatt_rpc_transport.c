@@ -8,6 +8,7 @@
 #include <sys/types.h>
 
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/kernel.h>
 #include <zephyr/sys/ring_buffer.h>
 
 #include "gatt_rpc_transport.h"
@@ -16,6 +17,9 @@
 
 struct ring_buf *zmk_rpc_get_rx_buf(void);
 void zmk_rpc_rx_notify(void);
+uint32_t zmk_test_ring_buf_space_get(struct ring_buf *ring);
+
+#define RPC_RING_BUF_SPACE_GET(ring) zmk_test_ring_buf_space_get(ring)
 
 #else
 
@@ -35,16 +39,24 @@ void zmk_rpc_rx_notify(void);
 
 LOG_MODULE_DECLARE(zmk_studio, CONFIG_ZMK_STUDIO_LOG_LEVEL);
 
+#define RPC_RING_BUF_SPACE_GET(ring) ring_buf_space_get(ring)
+
 #endif /* ZMK_STUDIO_GATT_RPC_RX_TEST */
 
 static bool handling_rx = false;
+static K_MUTEX_DEFINE(rpc_rx_write_mutex);
 
 ssize_t zmk_studio_rpc_rx_write(struct ring_buf *rpc_buf, const uint8_t *buf, uint32_t len) {
-    if (ring_buf_space_get(rpc_buf) < len) {
+    k_mutex_lock(&rpc_rx_write_mutex, K_FOREVER);
+
+    if (RPC_RING_BUF_SPACE_GET(rpc_buf) < len) {
+        k_mutex_unlock(&rpc_rx_write_mutex);
         return -ENOMEM;
     }
 
     uint32_t written = ring_buf_put(rpc_buf, buf, len);
+    k_mutex_unlock(&rpc_rx_write_mutex);
+
     return written == len ? (ssize_t)len : -EIO;
 }
 
@@ -100,8 +112,10 @@ static ssize_t write_rpc_req(struct bt_conn *conn, const struct bt_gatt_attr *at
 
     struct ring_buf *rpc_buf = zmk_rpc_get_rx_buf();
     ssize_t ret = zmk_studio_rpc_rx_write(rpc_buf, buf, len);
-    if (ret < 0) {
+    if (ret == -ENOMEM) {
         return BT_GATT_ERR(BT_ATT_ERR_INSUFFICIENT_RESOURCES);
+    } else if (ret < 0) {
+        return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
     }
 
     zmk_rpc_rx_notify();
